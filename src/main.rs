@@ -4,8 +4,6 @@ use std::thread;
 use std::io::Read;
 use std::io::Write;
 use std::str;
-![feature(rustc_private)]
-[macro_use] extern crate log;
 extern crate time;
 
 fn handle_client(mut stream: TcpStream) {
@@ -41,7 +39,7 @@ fn handle_client(mut stream: TcpStream) {
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:8888").unwrap();
-    thread::spawn(client);
+    thread::spawn(move || memcached_client(&"127.0.0.1:11211"));
     for stream in listener.incoming() {
         match stream {
             Err(e) => println!("failed: {}", e),
@@ -52,9 +50,8 @@ fn main() {
     }
 }
 
-fn client() {
-    let mut stream = TcpStream::connect("127.0.0.1:11211").unwrap();
-    debug!("this is a debug {:?}", "message");
+fn memcached_client(addr:&str) {
+    let mut stream = TcpStream::connect(&addr).unwrap();
 
     let b: &[u8] = "set x 0 0 3\r\n123\r\n".as_bytes();
     let _ = stream.write(b);
@@ -74,5 +71,4 @@ fn client() {
     };
 
     println!("{}", s.trim());
-
 }

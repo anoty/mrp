@@ -4,6 +4,8 @@ use std::thread;
 use std::io::Read;
 use std::io::Write;
 use std::str;
+use std::sync::Arc;
+
 extern crate time;
 
 fn handle_client(mut stream: TcpStream) {
@@ -40,7 +42,22 @@ fn handle_client(mut stream: TcpStream) {
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:9527").unwrap();
-    thread::spawn(move || memcached_client(&"127.0.0.1:11211"));
+
+    let mut streams: Vec<TcpStream> = Vec::new();
+    for _ in 1..10 {
+        let stream = TcpStream::connect("127.0.0.1:11211");
+        match stream {
+            Err(e) => println!("failed: {}", e),
+            Ok(stream) => {
+                streams.push(stream);
+            }
+        }
+    }
+
+    let mut shared_streams = Arc::new(streams);
+
+
+    thread::spawn(move || memcached_client(&streams));
     thread::spawn(client);
 
     for stream in listener.incoming() {
@@ -53,8 +70,8 @@ fn main() {
     }
 }
 
-fn memcached_client(addr: &str) {
-    let mut stream = TcpStream::connect(&addr).unwrap();
+fn memcached_clientg(sp: Vec<TcpStream>) {
+    let mut stream = sp.pop();
 
     let b: &[u8] = "set x 0 0 3\r\n123\r\n".as_bytes();
     let _ = stream.write(b);
